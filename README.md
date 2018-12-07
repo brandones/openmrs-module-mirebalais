@@ -216,6 +216,80 @@ There's an [Invoke](http://www.pyinvoke.org/) file for doing local development o
 [here](https://github.com/brandones/pih-emr-workspace/blob/master/tasks.py).
 Feel free to make pull requests.
 
+## Configuring Patient Identifiers
+
+### Summary
+
+For the roughly 10 sites in Chiapas ([https://tickets.pih-emr.org/browse/MEX-36](https://tickets.pih-emr.org/browse/MEX-36)), there are a couple of options for generating patient identifiers:
+
+1. Each site has its own prefix (e.g., MON for Monterrey) followed by numbers; this is configured on the OpenMRS instance on the laptop or other device for that site. When data is consolidated on the central server, the prefixes ensure that there are no clashes.
+
+2. There is a central cloud server at the main site with internet access that generates IDs to be used at the other sites. A remote server requests a pool of identifiers (say 500) from the main server, and periodically requests new ones to consume whenever it runs low. Typically this would happen when the laptop is brought in to the main site and is connected to the internet.
+
+It is possible to have two identifiers per patient, one for each option above, but for simplicity option 1 alone may be sufficient. 
+
+The benefit of option 2 is that it makes merging of patient records easier down the road, but unique identifiers across sites can always be generated later.
+
+### Configuration Details
+
+Configuration can be done manually in the OpenMRS admin UI, but we recommend doing it programatically so that it is easily reproducible.
+
+Define sites here (country + sites): [pihcore/.../ConfigDescriptor.java](https://github.com/PIH/openmrs-module-pihcore/blob/master/api/src/main/java/org/openmrs/module/pihcore/config/ConfigDescriptor.java)
+
+Define locations here: [pihcore/.../MexicoLocations.java](https://github.com/PIH/openmrs-module-pihcore/blob/master/api/src/main/java/org/openmrs/module/pihcore/metadata/mexico/MexicoLocations.java)
+
+Define the site patient identifier type here: [pihcore/.../MexicoPatientIdentifierTypes.java](https://github.com/PIH/openmrs-module-pihcore/blob/master/api/src/main/java/org/openmrs/module/pihcore/metadata/mexico/MexicoPatientIdentifierTypes.java)
+
+Configure the 10 site patient identifiers types here (use if statement for each site):
+
+[pihcore/.../ConfigureMexicoIdGenerators.java](https://github.com/PIH/openmrs-module-pihcore/blob/master/api/src/main/java/org/openmrs/module/pihcore/identifier/mexico/ConfigureMexicoIdGenerators.java)
+
+### Configuration Example
+
+Go to "Manage Patient Identifier Sources" from the admin console: [https://ci.pih-emr.org/openmrs/module/idgen/manageIdentifierSources.list](https://ci.pih-emr.org/openmrs/module/idgen/manageIdentifierSources.list)
+
+You will see the following existing identifier types/sources:
+
+<table>
+  <tr>
+    <td>Identifier Type</td>
+    <td>Source Type</td>
+    <td>Source Name</td>
+    <td>Actions</td>
+  </tr>
+  <tr>
+    <td>Nimewo Dosye</td>
+    <td>Local Identifier Generator</td>
+    <td>Sequential Generator for Dossier</td>
+    <td>Configure View</td>
+  </tr>
+  <tr>
+    <td>ZL EMR ID</td>
+    <td>Local Pool of Identifiers</td>
+    <td>Local Pool of ZL Identifiers</td>
+    <td>Configure View</td>
+  </tr>
+  <tr>
+    <td>ZL EMR ID</td>
+    <td>Remote Identifier Source</td>
+    <td>Remote Source for ZL Identifiers</td>
+    <td>Configure View</td>
+  </tr>
+  <tr>
+    <td>ZL EMR ID</td>
+    <td>Local Identifier Generator</td>
+    <td>ZL Identifier Generator</td>
+    <td>Configure View</td>
+  </tr>
+</table>
+
+
+"Nimewo Dosye" is a local identifier generator (option 1 in Summary).
+
+"Local Pool of ZL Identifiers" fetches 500 identifiers at a time from the pool identifier source (which can be a local or remote identifier generator), and refetches when the existing pool is less than 1000. Set “When to fill” to “Background task” for convenience.
+
+"ZL Identifier Generator" is an example for a generator that can be configured locally or remotely, and pointed to by “Remote Source for ZL Identifiers”.
+
 
 # Temporary steps to deploying custom build of OpenMRS-Core
 
@@ -239,7 +313,6 @@ If you see the following error when building core:
 [ERROR] Failed to execute goal com.mycila:license-maven-plugin:3.0:check (default) on project openmrs-test: Execution default of goal com.mycila:license-maven-plugin:3.0:check failed: Cannot read header document license-header.txt. Cause: Resource license-header.txt not found in file system, classpath or URL: no protocol: license-header.txt -> [Help 1]
 
 ... then try commenting out the mycila plugin in the main pom of the project
-
 
 # Source Code
 
